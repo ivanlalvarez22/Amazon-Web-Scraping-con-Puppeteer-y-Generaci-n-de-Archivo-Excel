@@ -16,8 +16,6 @@ const xlsx = require("xlsx");
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
   );
 
-  // networkidle2 es para hacer que espere unos segundos mientras la
-  // página carga.
   await page.goto(URL, { waitUntil: "networkidle2" });
 
   const title = await page.title();
@@ -27,6 +25,11 @@ const xlsx = require("xlsx");
   let nextPage = true;
 
   while (nextPage) {
+    // Esperar que los productos se carguen
+    await page.waitForSelector(".puis-card-container.s-card-container", {
+      timeout: 5000,
+    });
+
     const newProducts = await page.evaluate(() => {
       const products = Array.from(
         document.querySelectorAll(".puis-card-container.s-card-container")
@@ -57,12 +60,13 @@ const xlsx = require("xlsx");
 
     products = [...products, ...newProducts];
 
+    // Esperar que el botón "Siguiente" esté disponible
     nextPage = await page.evaluate(() => {
       const nextButton = document.querySelector(".s-pagination-next");
 
       if (
         nextButton &&
-        !nextButton.classList.contains(".s-pagination-disabled")
+        !nextButton.classList.contains("s-pagination-disabled")
       ) {
         nextButton.click();
         return true;
@@ -71,7 +75,10 @@ const xlsx = require("xlsx");
       return false;
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (nextPage) {
+      // Usar setTimeout en lugar de page.waitForTimeout para esperar
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
   }
 
   console.log(products);
@@ -82,6 +89,8 @@ const xlsx = require("xlsx");
 
   xlsx.utils.book_append_sheet(wb, ws, "Products");
   xlsx.writeFile(wb, path);
+
+  console.log("Proceso completado. Revisa el archivo products.xlsx.");
 
   await browser.close();
 })();
